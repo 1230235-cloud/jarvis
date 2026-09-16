@@ -4,8 +4,8 @@ import requests
 app = Flask(__name__)
 
 LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
-# Cambiamos a la API nativa de Ollama Cloud
-OLLAMA_CLOUD_URL = "https://api.ollama.com/api/chat"
+# Endpoint oficial compatible con OpenAI para Ollama Cloud
+OLLAMA_CLOUD_URL = "https://api.ollama.com/v1/chat/completions"
 OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
 def is_complex_task(prompt: str) -> bool:
@@ -25,9 +25,8 @@ def route_prompt():
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama3.3",
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False
+            "model": "llama3.3:latest",
+            "messages": [{"role": "user", "content": prompt}]
         }
         try:
             r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=60)
