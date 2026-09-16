@@ -4,7 +4,8 @@ import requests
 app = Flask(__name__)
 
 LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
-OLLAMA_CLOUD_URL = "https://api.ollama.com/v1/chat/completions"
+# Cambiamos a la API nativa de Ollama Cloud
+OLLAMA_CLOUD_URL = "https://api.ollama.com/api/chat"
 OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
 def is_complex_task(prompt: str) -> bool:
@@ -17,6 +18,7 @@ def route_prompt():
     prompt = data.get("prompt", "")
     force_cloud = data.get("force_cloud", False)
 
+    # 1. Enrutamiento a la Nube (Ollama Cloud API)
     if force_cloud or is_complex_task(prompt):
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
@@ -24,13 +26,16 @@ def route_prompt():
         }
         payload = {
             "model": "llama3.3",
-            "messages": [{"role": "user", "content": prompt}]
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False
         }
         try:
             r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=60)
             return jsonify({"source": "cloud", "response": r.json()})
         except Exception as e:
             return jsonify({"error": f"Error Nube: {str(e)}"}), 500
+
+    # 2. Enrutamiento Local (Tablet llama.cpp)
     else:
         payload = {
             "model": "Llama-3.2-1B-Instruct-Q4_K_M",
