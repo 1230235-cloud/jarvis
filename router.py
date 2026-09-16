@@ -4,7 +4,7 @@ import requests
 app = Flask(__name__)
 
 LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
-# Endpoint nativo de generación de Ollama Cloud
+# Endpoint oficial de Ollama Cloud API
 OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
 OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
@@ -25,7 +25,7 @@ def route_prompt():
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama3.3",
+            "model": "gemma4:31b",
             "prompt": prompt,
             "stream": False
         }
