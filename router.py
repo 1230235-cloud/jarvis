@@ -4,8 +4,6 @@ import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
-OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
-OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
 def query_backend(prompt: str) -> str:
     payload = {
@@ -26,17 +24,18 @@ def query_backend(prompt: str) -> str:
 def process_user_intent(prompt: str) -> str:
     text = prompt.strip().lower()
     
-    # 1. Comando YouTube
+    # 1. Comando YouTube flexible
     if "youtube" in text:
-        query = re.sub(r'\b(busca|pon|en|youtube|reproduce|quiero|escuchar|musica|video|por|favor|de)\b', '', text).strip()
+        query = re.sub(r'\b(busca|pon|en|youtube|reproduce|quiero|escuchar|musica|video|por|favor|de|la|el|los|las)\b', '', text).strip()
         query = " ".join(query.split()) or "musica"
         return f"ACTION:YOUTUBE:{query}"
         
-    # 2. Comando Búsqueda Web local en la PC (Firefox / Chrome)
-    elif "busca en internet" in text or "busca en google" in text or "investiga" in text or "busca" in text:
-        clean_query = text.replace("busca en internet", "").replace("busca en google", "").replace("investiga", "").replace("busca", "").strip()
-        if not clean_query:
-            clean_query = text
+    # 2. Comando Búsqueda Web local en la PC
+    elif any(k in text for k in ["busca en internet", "busca en google", "investiga", "busca"]):
+        clean_query = text
+        for word in ["busca en internet", "busca en google", "investiga", "busca"]:
+            clean_query = clean_query.replace(word, "")
+        clean_query = clean_query.strip() or text
         return f"ACTION:WEB:{clean_query}"
         
     # 3. Flujo Normal de IA
