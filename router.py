@@ -13,7 +13,7 @@ def select_cloud_model(prompt: str, has_image: bool = False) -> str:
     p = prompt.lower()
     # Programación y código avanzado -> gpt-oss:120b
     if any(kw in p for kw in ["codigo", "programar", "python", "script", "sql", "algoritmo", "debug"]):
-        return "gpt-oss:120b"
+        return "gemma4:31b"  # Modelo especializado en programación y depuración
     # Razonamiento profundo y análisis detallado -> nemotron-3-ultra
     elif any(kw in p for kw in ["analiza", "explica detalladamente", "razona", "matematicas"]):
         return "nemotron-3-ultra"
