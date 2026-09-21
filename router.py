@@ -3,15 +3,19 @@ import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
-OLLAMA_API_KEY = "1a4062d956104698b1be5ddf3fc554d6.1zQJB11rCecxj34U5LU8oDtx"
+OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
 def select_cloud_model(prompt: str, has_image: bool = False) -> str:
-    """Usa un modelo ágil y ligero para mantener respuestas rápidas y evitar timeouts."""
     if has_image:
-        return "llama3.2-vision"  # O el modelo visual ligero que prefieras
+        return "nemotron-3-ultra"
     
-    # Modelo ágil y general que responde al instante
-    return "llama3.2"
+    p = prompt.lower()
+    if any(kw in p for kw in ["codigo", "programar", "python", "script", "sql", "algoritmo", "debug"]):
+        return "gpt-oss:120b"
+    elif any(kw in p for kw in ["analiza", "explica detalladamente", "razona", "matematicas"]):
+        return "nemotron-3-ultra"
+    else:
+        return "gemma4:31b"
 
 def query_cloud_backend(prompt: str, image_base64: str = None) -> str:
     model_to_use = select_cloud_model(prompt, has_image=(image_base64 is not None))
@@ -19,22 +23,18 @@ def query_cloud_backend(prompt: str, image_base64: str = None) -> str:
     
     payload = {
         "model": model_to_use, 
-        "prompt": prompt if prompt else "Analiza esta imagen.", 
-        "stream": False,
-        "options": {
-            "temperature": 0.3,
-            "num_predict": 256  # Limita un poco la longitud para garantizar velocidad
-        }
+        "prompt": prompt if prompt else "Analiza esta imagen detalladamente.", 
+        "stream": False
     }
     
     if image_base64:
         payload["images"] = [image_base64]
 
     try:
-        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=60)
+        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=300)
         if r.status_code == 200:
             return r.json().get("response", "Sin respuesta.")
-        return f"Error HTTP Nube ({model_to_use}): {r.status_code}"
+        return f"Error HTTP Nube ({model_to_use}): {r.status_code} - {r.text}"
     except Exception as e:
         return f"Error Nube: {str(e)}"
 
