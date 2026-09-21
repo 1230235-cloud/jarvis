@@ -13,7 +13,7 @@ def select_cloud_model(prompt: str, has_image: bool = False) -> str:
     p = prompt.lower()
     # Programación y código avanzado -> gpt-oss:120b
     if any(kw in p for kw in ["codigo", "programar", "python", "script", "sql", "algoritmo", "debug"]):
-        return "gemma4:31b"  # Modelo especializado en programación y depuración
+        return "gpt-oss:120b"
     # Razonamiento profundo y análisis detallado -> nemotron-3-ultra
     elif any(kw in p for kw in ["analiza", "explica detalladamente", "razona", "matematicas"]):
         return "nemotron-3-ultra"
@@ -35,7 +35,8 @@ def query_cloud_backend(prompt: str, image_base64: str = None) -> str:
         payload["images"] = [image_base64]
 
     try:
-        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=90)
+        # Aumentamos el timeout a 180 segundos para dar tiempo a modelos pesados como el de 120b
+        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=180)
         if r.status_code == 200:
             return r.json().get("response", "Sin respuesta.")
         return f"Error HTTP Nube ({model_to_use}): {r.status_code}"
@@ -52,7 +53,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 prompt = data.get("prompt", "")
                 image_base64 = data.get("image", None)
                 
-                # Procesar la petición directamente con el modelo de nube adecuado
+                # Procesar la petición con el modelo de nube adecuado
                 reply = query_cloud_backend(prompt, image_base64)
                 
                 self.send_response(200)
