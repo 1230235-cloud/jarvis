@@ -6,18 +6,14 @@ OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
 OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
 def select_cloud_model(prompt: str, has_image: bool = False) -> str:
-    """Selecciona el modelo en la nube óptimo según la tarea o si incluye foto."""
     if has_image:
-        return "nemotron-3-ultra"  # Óptimo para análisis visual de fotos e imágenes
+        return "nemotron-3-ultra"
     
     p = prompt.lower()
-    # Programación y código avanzado -> gpt-oss:120b
     if any(kw in p for kw in ["codigo", "programar", "python", "script", "sql", "algoritmo", "debug"]):
         return "gpt-oss:120b"
-    # Razonamiento profundo y análisis detallado -> nemotron-3-ultra
     elif any(kw in p for kw in ["analiza", "explica detalladamente", "razona", "matematicas"]):
         return "nemotron-3-ultra"
-    # Conversación general, redacción y consultas cotidianas -> gemma4:31b
     else:
         return "gemma4:31b"
 
@@ -35,11 +31,11 @@ def query_cloud_backend(prompt: str, image_base64: str = None) -> str:
         payload["images"] = [image_base64]
 
     try:
-        # Aumentamos el timeout a 180 segundos para dar tiempo a modelos pesados como el de 120b
-        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=180)
+        # Petición directa a la API de Ollama en la nube con un timeout amplio de 300s
+        r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=300)
         if r.status_code == 200:
             return r.json().get("response", "Sin respuesta.")
-        return f"Error HTTP Nube ({model_to_use}): {r.status_code}"
+        return f"Error HTTP Nube ({model_to_use}): {r.status_code} - {r.text}"
     except Exception as e:
         return f"Error Nube: {str(e)}"
 
@@ -53,7 +49,6 @@ class RequestHandler(BaseHTTPRequestHandler):
                 prompt = data.get("prompt", "")
                 image_base64 = data.get("image", None)
                 
-                # Procesar la petición con el modelo de nube adecuado
                 reply = query_cloud_backend(prompt, image_base64)
                 
                 self.send_response(200)
