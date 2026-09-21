@@ -20,7 +20,7 @@ def is_complex_task(prompt: str) -> bool:
     return any(kw in prompt.lower() for kw in COMPLEX_KEYWORDS)
 
 def get_first_youtube_video(query: str) -> str:
-    """Busca el primer resultado y genera un enlace embebido con autoplay forzado."""
+    """Busca el primer resultado en YouTube y devuelve el enlace estándar."""
     try:
         search_url = f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -31,8 +31,8 @@ def get_first_youtube_video(query: str) -> str:
             video_ids = re.findall(r'\"videoId\":\"([a-zA-Z0-9_-]{11})\"', response.text)
             if video_ids:
                 first_video_id = video_ids[0]
-                # Enlace embebido con reproductor directo y autoplay
-                return f"https://www.youtube.com/embed/{first_video_id}?autoplay=1"
+                # Enlace estándar de YouTube para reproducción directa sin bloqueos
+                return f"https://www.youtube.com/watch?v={first_video_id}"
         return f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
     except Exception:
         return f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
