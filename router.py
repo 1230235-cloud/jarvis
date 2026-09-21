@@ -61,7 +61,7 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
         except Exception as e:
             return f"Error Nube: {str(e)}"
 
-    # 3. Tarea Cotidiana / Rápida -> Cerebro Local (llama.cpp)
+    # 3. Tarea Cotidiana / Rápida -> Cerebro Local (llama.cpp) con timeout ampliado
     else:
         payload = {
             "model": "Llama-3.2-1B-Instruct-Q4_K_M",
@@ -105,7 +105,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(post_data)
                 prompt = data.get("prompt", "")
-                image_base64 = data.get("image", None) # Recibe la imagen en base64 directamente
+                image_base64 = data.get("image", None)
                 
                 # Procesar la intención con texto e imagen
                 reply = process_user_intent(prompt, image_base64)
@@ -127,7 +127,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print(f"Servidor router.py híbrido (con visión) escuchando en el puerto {port}...")
+    print(f"Servidor router.py híbrido escuchando en el puerto {port}...")
     httpd.serve_forever()
 
 if __name__ == "__main__":
