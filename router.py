@@ -22,14 +22,14 @@ def is_complex_task(prompt: str) -> bool:
 def query_backend(prompt: str, image_base64: str = None) -> str:
     """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
     
-    # 1. Tarea con Imagen -> Modelo de Visión en la Nube
+    # 1. Tarea con Imagen -> Modelo de Visión en la Nube (llama3.2-vision)
     if image_base64:
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "nemotron-3-ultra",
+            "model": "llama3.2-vision",
             "prompt": prompt if prompt else "Analiza esta imagen detalladamente.",
             "images": [image_base64],
             "stream": False
