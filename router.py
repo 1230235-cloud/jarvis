@@ -73,7 +73,7 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
             "temperature": 0.2
         }
         try:
-            r = requests.post(LOCAL_LLAMA_URL, json=payload, timeout=30)
+            r = requests.post(LOCAL_LLAMA_URL, json=payload, timeout=120)
             if r.status_code == 200:
                 choices = r.json().get("choices", [])
                 if choices:
