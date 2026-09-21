@@ -3,7 +3,7 @@ import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
-OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
+OLLAMA_API_KEY = "1a4062d956104698b1be5ddf3fc554d6.1zQJB11rCecxj34U5LU8oDtx"
 
 def select_cloud_model(prompt: str, has_image: bool = False) -> str:
     """Usa un modelo ágil y ligero para mantener respuestas rápidas y evitar timeouts."""
