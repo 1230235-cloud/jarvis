@@ -1,3 +1,5 @@
+import os
+import importlib
 import json
 import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -18,24 +20,6 @@ COMPLEX_KEYWORDS = [
 def is_complex_task(prompt: str) -> bool:
     """Detecta si la consulta requiere el modelo avanzado de texto en la nube."""
     return any(kw in prompt.lower() for kw in COMPLEX_KEYWORDS)
-
-def get_first_youtube_video(query: str) -> str:
-    """Busca el primer resultado en YouTube y devuelve el enlace estándar."""
-    try:
-        search_url = f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(search_url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            import re
-            video_ids = re.findall(r'\"videoId\":\"([a-zA-Z0-9_-]{11})\"', response.text)
-            if video_ids:
-                first_video_id = video_ids[0]
-                # Enlace estándar de YouTube para reproducción directa sin bloqueos
-                return f"https://www.youtube.com/watch?v={first_video_id}"
-        return f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
-    except Exception:
-        return f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
 
 def query_backend(prompt: str, image_base64: str = None) -> str:
     """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
@@ -101,20 +85,42 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
         except Exception as e:
             return f"Error Local: {str(e)}"
 
-def process_user_intent(prompt: str, image_base64: str = None) -> str:
-    """Procesa intenciones del usuario (acciones especiales o enrutamiento de IA)."""
-    text = prompt.strip()
-    text_lower = text.lower()
+# --- CARGADOR DINÁMICO DE PLUGINS ---
+loaded_plugins = []
+
+def load_plugins():
+    """Carga automáticamente todos los plugins ubicados en la carpeta plugins/."""
+    global loaded_plugins
+    loaded_plugins = []
+    plugin_dir = "plugins"
     
-    # Detección flexible de YouTube ante cualquier mención de la palabra
-    if "youtube" in text_lower or "reproduce" in text_lower:
-        import re
-        query = re.sub(r'\b(busca|pon|en|youtube|reproduce|quiero|escuchar|musica|video|por|favor|de|la|el|los|las)\b', '', text_lower).strip()
-        query = " ".join(query.split()) or text_lower.replace("youtube", "").strip()
-        video_url = get_first_youtube_video(query if query else text_lower)
-        return f"ACTION:YOUTUBE_PLAY:{video_url}"
+    if not os.path.exists(plugin_dir):
+        os.makedirs(plugin_dir)
         
-    # Flujo de modelos híbridos
+    for filename in os.listdir(plugin_dir):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            module_name = filename[:-3]
+            try:
+                mod = importlib.import_module(f"plugins.{module_name}")
+                if hasattr(mod, "can_handle") and hasattr(mod, "handle"):
+                    loaded_plugins.append(mod)
+                    print(f"[Plugin Cargado] -> {module_name}")
+            except Exception as e:
+                print(f"Error cargando plugin {module_name}: {e}")
+
+def process_user_intent(prompt: str, image_base64: str = None) -> str:
+    """Busca si algún plugin puede manejar la intención; si no, pasa al enrutador de IA."""
+    text = prompt.strip()
+    
+    # 1. Evaluar si algún plugin registrado maneja esta petición
+    for plugin in loaded_plugins:
+        try:
+            if plugin.can_handle(text):
+                return plugin.handle(text)
+        except Exception as e:
+            print(f"Error ejecutando plugin: {e}")
+            
+    # 2. Si ningún plugin aplica, usar el flujo híbrido de modelos
     return query_backend(text, image_base64)
 
 # --- SERVIDOR WEB INTEGRADO ---
@@ -128,10 +134,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 prompt = data.get("prompt", "")
                 image_base64 = data.get("image", None)
                 
-                # Procesar la intención con texto e imagen
+                # Procesar intención mediante plugins o IA
                 reply = process_user_intent(prompt, image_base64)
                 
-                # Enviar respuesta exitosa
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
@@ -146,9 +151,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
+    load_plugins()
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print(f"Servidor router.py híbrido escuchando en el puerto {port}...")
+    print(f"Servidor router.py modular escuchando en el puerto {port}...")
     httpd.serve_forever()
 
 if __name__ == "__main__":
