@@ -22,14 +22,14 @@ def is_complex_task(prompt: str) -> bool:
 def query_backend(prompt: str, image_base64: str = None) -> str:
     """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
     
-    # 1. Tarea con Imagen -> Modelo de Visión en la Nube (llava:7b)
+    # 1. Tarea con Imagen -> Modelo Gemma en la Nube
     if image_base64:
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llava:7b",
+            "model": "gemma",  # Usando Gemma para la tarea multimodal en la nube
             "prompt": prompt if prompt else "Analiza esta imagen detalladamente.",
             "images": [image_base64],
             "stream": False
@@ -37,10 +37,10 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
         try:
             r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=120)
             if r.status_code == 200:
-                return r.json().get("response", "Sin respuesta del modelo de visión.")
-            return f"Error HTTP Nube (Imagen): {r.status_code} - {r.text}"
+                return r.json().get("response", "Sin respuesta del modelo Gemma.")
+            return f"Error HTTP Nube (Gemma Imagen): {r.status_code} - {r.text}"
         except Exception as e:
-            return f"Error Nube (Imagen): {str(e)}"
+            return f"Error Nube (Gemma Imagen): {str(e)}"
 
     # 2. Tarea Compleja de Texto / Código -> Modelo Pesado en la Nube
     elif is_complex_task(prompt):
