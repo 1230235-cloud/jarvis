@@ -1,7 +1,5 @@
 import json
 import requests
-import subprocess
-import platform
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Servidor local de llama.cpp en la tablet
@@ -24,13 +22,11 @@ def is_complex_task(prompt: str) -> bool:
 def get_first_youtube_video(query: str) -> str:
     """Busca el primer resultado en YouTube usando una consulta web y extrae el enlace."""
     try:
-        # Usamos una petición limpia para buscar en la web de YouTube de forma rápida
         search_url = f"https://www.youtube.com/results?search_query={requests.utils.quote(query)}"
         headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(search_url, headers=headers, timeout=10)
         
         if response.status_code == 200:
-            # Buscamos el primer ID de video en el código fuente de la página de resultados
             import re
             video_ids = re.findall(r'\"videoId\":\"([a-zA-Z0-9_-]{11})\"', response.text)
             if video_ids:
@@ -109,10 +105,12 @@ def process_user_intent(prompt: str, image_base64: str = None) -> str:
     text = prompt.strip()
     text_lower = text.lower()
     
-    # 1. Mejora de YouTube: Extrae el primer resultado y devuelve la acción de reproducción
-    if "busca en youtube" in text_lower or "pon en youtube" in text_lower or "reproduce" in text_lower:
-        query = text_lower.replace("busca en youtube", "").replace("pon en youtube", "").replace("reproduce", "").strip()
-        video_url = get_first_youtube_video(query)
+    # Detección flexible de YouTube ante cualquier mención de la palabra
+    if "youtube" in text_lower or "reproduce" in text_lower:
+        import re
+        query = re.sub(r'\b(busca|pon|en|youtube|reproduce|quiero|escuchar|musica|video|por|favor|de|la|el|los|las)\b', '', text_lower).strip()
+        query = " ".join(query.split()) or text_lower.replace("youtube", "").strip()
+        video_url = get_first_youtube_video(query if query else text_lower)
         return f"ACTION:YOUTUBE_PLAY:{video_url}"
         
     # Flujo de modelos híbridos
