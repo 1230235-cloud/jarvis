@@ -1,10 +1,8 @@
 import json
 import requests
-from duckduckgo_search import DDGS
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Servidor local de llama.cpp en la tablet
-# Configuración de Modelos
 LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 
 # Endpoint oficial de Ollama Cloud API
@@ -20,17 +18,6 @@ COMPLEX_KEYWORDS = [
 def is_complex_task(prompt: str) -> bool:
     """Detecta si la consulta requiere el modelo avanzado en la nube."""
     return any(kw in prompt.lower() for kw in COMPLEX_KEYWORDS)
-
-def search_web(query: str) -> str:
-    """Ejecuta una búsqueda web rápida en DuckDuckGo."""
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3))
-            if not results:
-                return "No se encontraron resultados en internet."
-            return "\n".join([f"- {r['title']}: {r['body']}" for r in results])
-    except Exception as e:
-        return f"Error en la búsqueda web: {str(e)}"
 
 def query_backend(prompt: str, force_cloud: bool = False) -> str:
     """Enruta hacia Ollama Cloud (Gemma 31B) o hacia llama.cpp local (Llama 3.2 1B)."""
@@ -77,7 +64,7 @@ def query_backend(prompt: str, force_cloud: bool = False) -> str:
             return f"Error Local (llama.cpp): {str(e)}"
 
 def process_user_intent(prompt: str, force_cloud: bool = False) -> str:
-    """Procesa intenciones del usuario (YouTube, Búsqueda Web o Consulta a modelos)."""
+    """Procesa intenciones del usuario (YouTube o Consulta a modelos)."""
     text = prompt.strip()
     text_lower = text.lower()
     
@@ -85,19 +72,8 @@ def process_user_intent(prompt: str, force_cloud: bool = False) -> str:
     if "busca en youtube" in text_lower or "pon en youtube" in text_lower:
         query = text_lower.replace("busca en youtube", "").replace("pon en youtube", "").strip()
         return f"ACTION:YOUTUBE:{query}"
-
-    # 2. Comando Búsqueda Web + Análisis en la Nube
-    elif "busca en internet" in text_lower or "busca en google" in text_lower or "investiga" in text_lower:
-        clean_query = text_lower.replace("busca en internet", "").replace("busca en google", "").replace("investiga", "").strip()
-        web_results = search_web(clean_query)
-        augmented_prompt = (
-            f"El usuario consulta: '{clean_query}'.\n"
-            f"Información recuperada de internet:\n{web_results}\n\n"
-            f"Responde la consulta utilizando esta información:"
-        )
-        return query_backend(augmented_prompt, force_cloud=True)
         
-    # 3. Flujo Normal (Local o Nube)
+    # 2. Flujo Normal (Local o Nube)
     return query_backend(text, force_cloud)
 
 # --- SERVIDOR WEB INTEGRADO ---
