@@ -9,27 +9,47 @@ LOCAL_LLAMA_URL = "http://127.0.0.1:8080/v1/chat/completions"
 OLLAMA_CLOUD_URL = "https://api.ollama.com/api/generate"
 OLLAMA_API_KEY = "45165a514f1342f0bc84e2d29f93c587.EZCBdevL-LOiljKcOMFJRzvc"
 
-# Palabras clave que requieren el modelo potente de la nube
+# Palabras clave que requieren el modelo potente de texto en la nube
 COMPLEX_KEYWORDS = [
     "codigo", "programar", "python", "script", "math", "sql", 
     "explicar detalladamente", "resume", "traduce", "analiza", "algoritmo"
 ]
 
 def is_complex_task(prompt: str) -> bool:
-    """Detecta si la consulta requiere el modelo avanzado en la nube."""
+    """Detecta si la consulta requiere el modelo avanzado de texto en la nube."""
     return any(kw in prompt.lower() for kw in COMPLEX_KEYWORDS)
 
-def query_backend(prompt: str, force_cloud: bool = False) -> str:
-    """Enruta hacia Ollama Cloud (Gemma 31B) o hacia llama.cpp local (Llama 3.2 1B)."""
+def query_backend(prompt: str, image_base64: str = None) -> str:
+    """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
     
-    # 1. Procesamiento en la Nube (Ollama Cloud API)
-    if force_cloud or is_complex_task(prompt):
+    # 1. Tarea con Imagen -> Modelo de Visión en la Nube
+    if image_base64:
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "gemma4:31b",
+            "model": "nemotron-3-ultra",
+            "prompt": prompt if prompt else "Analiza esta imagen detalladamente.",
+            "images": [image_base64],
+            "stream": False
+        }
+        try:
+            r = requests.post(OLLAMA_CLOUD_URL, json=payload, headers=headers, timeout=120)
+            if r.status_code == 200:
+                return r.json().get("response", "Sin respuesta del modelo de visión.")
+            return f"Error HTTP Nube (Imagen): {r.status_code}"
+        except Exception as e:
+            return f"Error Nube (Imagen): {str(e)}"
+
+    # 2. Tarea Compleja de Texto / Código -> Modelo Pesado en la Nube
+    elif is_complex_task(prompt):
+        headers = {
+            "Authorization": f"Bearer {OLLAMA_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "gpt-oss:120b",
             "prompt": prompt,
             "stream": False
         }
@@ -41,7 +61,7 @@ def query_backend(prompt: str, force_cloud: bool = False) -> str:
         except Exception as e:
             return f"Error Nube: {str(e)}"
 
-    # 2. Procesamiento Local (llama.cpp en la Tablet)
+    # 3. Tarea Cotidiana / Rápida -> Cerebro Local (llama.cpp)
     else:
         payload = {
             "model": "Llama-3.2-1B-Instruct-Q4_K_M",
@@ -53,28 +73,28 @@ def query_backend(prompt: str, force_cloud: bool = False) -> str:
             "temperature": 0.2
         }
         try:
-            r = requests.post(LOCAL_LLAMA_URL, json=payload, timeout=120)
+            r = requests.post(LOCAL_LLAMA_URL, json=payload, timeout=30)
             if r.status_code == 200:
                 choices = r.json().get("choices", [])
                 if choices:
                     return choices[0]["message"]["content"]
                 return "Sin respuesta del modelo local."
-            return f"Error HTTP Local (llama.cpp): {r.status_code}"
+            return f"Error HTTP Local: {r.status_code}"
         except Exception as e:
-            return f"Error Local (llama.cpp): {str(e)}"
+            return f"Error Local: {str(e)}"
 
-def process_user_intent(prompt: str, force_cloud: bool = False) -> str:
-    """Procesa intenciones del usuario (YouTube o Consulta a modelos)."""
+def process_user_intent(prompt: str, image_base64: str = None) -> str:
+    """Procesa intenciones del usuario (acciones especiales o enrutamiento de IA)."""
     text = prompt.strip()
     text_lower = text.lower()
     
-    # 1. Comando YouTube
+    # Comando YouTube opcional
     if "busca en youtube" in text_lower or "pon en youtube" in text_lower:
         query = text_lower.replace("busca en youtube", "").replace("pon en youtube", "").strip()
         return f"ACTION:YOUTUBE:{query}"
         
-    # 2. Flujo Normal (Local o Nube)
-    return query_backend(text, force_cloud)
+    # Flujo de modelos híbridos
+    return query_backend(text, image_base64)
 
 # --- SERVIDOR WEB INTEGRADO ---
 class RequestHandler(BaseHTTPRequestHandler):
@@ -85,11 +105,12 @@ class RequestHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(post_data)
                 prompt = data.get("prompt", "")
+                image_base64 = data.get("image", None) # Recibe la imagen en base64 directamente
                 
-                # Procesar la intención del usuario
-                reply = process_user_intent(prompt)
+                # Procesar la intención con texto e imagen
+                reply = process_user_intent(prompt, image_base64)
                 
-                # Enviar respuesta exitosa a Kivy
+                # Enviar respuesta exitosa
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
@@ -106,7 +127,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print(f"Servidor router.py escuchando en el puerto {port}...")
+    print(f"Servidor router.py híbrido (con visión) escuchando en el puerto {port}...")
     httpd.serve_forever()
 
 if __name__ == "__main__":
