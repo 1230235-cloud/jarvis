@@ -22,7 +22,7 @@ def is_complex_task(prompt: str) -> bool:
 def query_backend(prompt: str, image_base64: str = None) -> str:
     """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
     
-    # 1. Tarea con Imagen -> Modelo de Visión en la Nube (Formato Multimodal)
+    # 1. Tarea con Imagen -> Modelo de Visión en la Nube
     if image_base64:
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
@@ -30,25 +30,14 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
         }
         payload = {
             "model": "nemotron-3-ultra",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt if prompt else "Analiza esta imagen detalladamente."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                    ]
-                }
-            ],
+            "prompt": prompt if prompt else "Analiza esta imagen detalladamente.",
+            "images": [image_base64],
             "stream": False
         }
         try:
-            r = requests.post("https://api.ollama.com/v1/chat/completions", json=payload, headers=headers, timeout=120)
+            r = requests.post("https://api.ollama.com/api/generate", json=payload, headers=headers, timeout=120)
             if r.status_code == 200:
-                data = r.json()
-                choices = data.get("choices", [])
-                if choices:
-                    return choices[0]["message"]["content"]
-                return data.get("response", "Sin respuesta del modelo de visión.")
+                return r.json().get("response", "Sin respuesta del modelo de visión.")
             return f"Error HTTP Nube (Imagen): {r.status_code} - {r.text}"
         except Exception as e:
             return f"Error Nube (Imagen): {str(e)}"
