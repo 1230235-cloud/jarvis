@@ -21,8 +21,8 @@ def is_complex_task(prompt: str) -> bool:
     """Detecta si la consulta requiere el modelo avanzado de texto en la nube."""
     return any(kw in prompt.lower() for kw in COMPLEX_KEYWORDS)
 
-def query_backend(prompt: str, image_base64: str = None) -> str:
-    """Enruta inteligentemente entre modelos locales y en la nube según la tarea."""
+def query_backend(prompt: str, image_base64: str = None, history: list = None, model_override: str = None) -> str:
+    """Enruta inteligentemente entre modelos locales y en la nube según la tarea o el modelo forzado."""
     
     # 1. Tarea con Imagen -> Modelo gemma4:31b en la Nube
     if image_base64:
@@ -44,15 +44,23 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
         except Exception as e:
             return f"Error Nube (Gemma Imagen): {str(e)}"
 
-    # 2. Tarea Compleja de Texto / Código -> Modelo Pesado en la Nube
-    elif is_complex_task(prompt):
+    # 2. Modo Forzado (Ej. 'deep_research') o Tarea Compleja de Texto / Código -> Modelo Pesado en la Nube
+    elif model_override == 'deep_research' or is_complex_task(prompt):
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
             "Content-Type": "application/json"
         }
+        
+        # Construir contexto acumulado si se recibe historial
+        full_prompt = prompt
+        if history:
+            formatted_history = "\n".join([f"{msg.get('role', 'user')}: {msg.get('content', '')}" for msg in history[:-1]])
+            if formatted_history:
+                full_prompt = f"Historial previo de la conversación:\n{formatted_history}\n\nNueva consulta:\n{prompt}"
+
         payload = {
             "model": "gpt-oss:120b",
-            "prompt": prompt,
+            "prompt": full_prompt,
             "stream": False
         }
         try:
@@ -65,12 +73,21 @@ def query_backend(prompt: str, image_base64: str = None) -> str:
 
     # 3. Tarea Cotidiana / Rápida -> Cerebro Local (llama.cpp)
     else:
+        messages = [{"role": "system", "content": "Responde de forma concisa y clara."}]
+        
+        # Incorporar el historial al formato nativo de mensajes si existe
+        if history:
+            for item in history:
+                messages.append({
+                    "role": item.get("role", "user"),
+                    "content": item.get("content", "")
+                })
+        else:
+            messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": "Llama-3.2-1B-Instruct-Q4_K_M",
-            "messages": [
-                {"role": "system", "content": "Responde de forma concisa y clara."},
-                {"role": "user", "content": prompt}
-            ],
+            "messages": messages,
             "max_tokens": 128,
             "temperature": 0.2
         }
@@ -97,6 +114,8 @@ def load_plugins():
     if not os.path.exists(plugin_dir):
         os.makedirs(plugin_dir)
         
+    for filename in os.listdir(filename for filename in os.listdir(plugin_dir) if filename.endswith(".py") and not filename.startswith("__")):
+        pass
     for filename in os.listdir(plugin_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = filename[:-3]
@@ -108,7 +127,7 @@ def load_plugins():
             except Exception as e:
                 print(f"Error cargando plugin {module_name}: {e}")
 
-def process_user_intent(prompt: str, image_base64: str = None) -> str:
+def process_user_intent(prompt: str, image_base64: str = None, history: list = None, model_override: str = None) -> str:
     """Busca si algún plugin puede manejar la intención; si no, pasa al enrutador de IA."""
     text = prompt.strip()
     
@@ -121,7 +140,7 @@ def process_user_intent(prompt: str, image_base64: str = None) -> str:
             print(f"Error ejecutando plugin: {e}")
             
     # 2. Si ningún plugin aplica, usar el flujo híbrido de modelos
-    return query_backend(text, image_base64)
+    return query_backend(text, image_base64, history, model_override)
 
 # --- SERVIDOR WEB INTEGRADO ---
 class RequestHandler(BaseHTTPRequestHandler):
@@ -133,9 +152,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                 data = json.loads(post_data)
                 prompt = data.get("prompt", "")
                 image_base64 = data.get("image", None)
+                history = data.get("history", None)
+                model_override = data.get("model_override", None)
                 
                 # Procesar intención mediante plugins o IA
-                reply = process_user_intent(prompt, image_base64)
+                reply = process_user_intent(prompt, image_base64, history, model_override)
                 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')

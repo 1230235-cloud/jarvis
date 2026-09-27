@@ -1,0 +1,2 @@
+/run/media/jinsoon005/juegos1/jarvis/jarvis/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/bootstrap_builds/sdl2/obj/local/armeabi-v7a/objs-debug/SDL2_image/src/IMG_WIC.o: \
+  /run/media/jinsoon005/juegos1/jarvis/jarvis/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/bootstrap_builds/sdl2/jni/SDL2_image/src/IMG_WIC.c

@@ -1,0 +1,10 @@
+BOOTSTRAP = 'sdl2'
+IS_SDL2 = 1
+IS_SDL3 = 0
+PY2 = 0
+ANDROID_LIBS_DIR = '/run/media/jinsoon005/juegos1/jarvis/jarvis/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/libs_collections/jarvis/armeabi-v7a:/run/media/jinsoon005/juegos1/jarvis/jarvis/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/bootstrap_builds/sdl2/obj/local/armeabi-v7a'
+JAVA_NAMESPACE = 'org.kivy.android'
+JNI_NAMESPACE = 'org/kivy/android'
+ACTIVITY_CLASS_NAME = 'org.kivy.android.PythonActivity'
+ACTIVITY_CLASS_NAMESPACE = 'org/kivy/android/PythonActivity'
+SERVICE_CLASS_NAME = 'org.kivy.android.PythonService'
