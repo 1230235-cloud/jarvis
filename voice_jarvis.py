@@ -5,7 +5,8 @@ import requests
 import pyttsx3
 import speech_recognition as sr
 
-JARVIS_URL = "http://10.21.209.217:8000/ask"
+# URL de conexión (puede pasarse como primer argumento en consola)
+JARVIS_URL = sys.argv[1] if len(sys.argv) > 1 else "http://100.64.0.1:8000/ask"
 TEMP_AUDIO = "/tmp/jarvis_input.wav"
 TARGET_MIC = "alsa_input.pci-0000_00_1f.3.analog-stereo"
 
@@ -20,27 +21,21 @@ for voice in voices:
         break
 
 def speak(text: str):
-    print(f"\n\033[1;34mJarvis:\033[0m {text}")
+    print(f"\n\033[1;34mNem:\033[0m {text}")
     engine.say(text)
     engine.runAndWait()
 
 def listen(duration=5) -> str:
     recognizer = sr.Recognizer()
     try:
-        print("\n\033[90m[MIC] Escuchando (grabando 5s con PipeWire)... habla ahora\033[0m")
-        
-        # Grabación con pw-record y conversión limpia a PCM WAV mediante ffmpeg
+        print("\n\033[90m[MIC] Escuchando (habla ahora)... \033[0m")
         RAW_AUDIO = "/tmp/jarvis_raw.wav"
         cmd = f"sh -c 'pw-record --target {TARGET_MIC} {RAW_AUDIO} & PID=$!; sleep {duration}; kill $PID; ffmpeg -y -i {RAW_AUDIO} -ac 1 -ar 16000 {TEMP_AUDIO} > /dev/null 2>&1'"
         subprocess.run(cmd, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        
-        print("\033[93m[MIC] Grabación finalizada. Procesando voz...\033[0m")
 
         if not os.path.exists(TEMP_AUDIO):
-            print("\033[1;31m[ERROR MIC]: No se generó el archivo de audio.\033[0m")
             return ""
 
-        # Enviar audio a Google STT
         with sr.AudioFile(TEMP_AUDIO) as source:
             audio = recognizer.record(source)
             text = recognizer.recognize_google(audio, language="es-ES")
@@ -48,13 +43,9 @@ def listen(duration=5) -> str:
             return text
 
     except sr.UnknownValueError:
-        print("\033[1;31m[MIC] No se entendieron palabras claras.\033[0m")
-        return ""
-    except sr.RequestError as e:
-        print(f"\033[1;31m[MIC] Error en la API STT: {e}\033[0m")
         return ""
     except Exception as e:
-        print(f"\033[1;31m[ERROR MIC]: {e}\033[0m")
+        print(f"\033[1;31m[ERROR MIC]:\033[0m {e}")
         return ""
     finally:
         for path in [TEMP_AUDIO, "/tmp/jarvis_raw.wav"]:
@@ -62,31 +53,57 @@ def listen(duration=5) -> str:
                 os.remove(path)
 
 def voice_chat():
-    speak("Sistemas listos. Te escucho.")
+    speak("Sistemas Nem listos con Nemotron 3 Ultra y modo offline. Te escucho.")
+    conversation_history = []
+    active_model = "nemotron-3-ultra"
+    is_offline = False
+
     while True:
         try:
             prompt = listen()
             if not prompt:
                 continue
 
-            if any(kw in prompt.lower() for kw in ["salir", "apagar", "adiós", "terminar"]):
+            prompt_lower = prompt.lower()
+            if any(kw in prompt_lower for kw in ["salir", "apagar", "adiós", "terminar"]):
                 speak("Hasta luego.")
                 break
 
-            print("\033[90mConsultando backend de Jarvis...\033[0m")
-            response = requests.post(JARVIS_URL, json={"prompt": prompt}, timeout=90)
+            if "modo offline" in prompt_lower:
+                is_offline = True
+                speak("Modo offline activado. Usando inferencia local.")
+                continue
+            elif "modo online" in prompt_lower:
+                is_offline = False
+                active_model = "nemotron-3-ultra"
+                speak("Modo online activado con Nemotron.")
+                continue
+
+            conversation_history.append({"role": "user", "content": prompt})
+
+            payload = {
+                "prompt": prompt,
+                "history": conversation_history,
+                "active_model": active_model,
+                "offline": is_offline
+            }
+
+            print("\033[90mConsultando backend...\033[0m")
+            response = requests.post(JARVIS_URL, json=payload, timeout=90)
             
             if response.status_code == 200:
                 data = response.json()
-                res_obj = data.get("response", {})
-                
-                if "choices" in res_obj:
-                    content = res_obj["choices"][0]["message"]["content"]
-                elif "response" in res_obj:
-                    content = res_obj["response"]
-                else:
-                    content = str(res_obj)
+                content = data.get("response", "Sin respuesta.")
+                new_model = data.get("active_model")
+                session_closed = data.get("session_closed", False)
 
+                if session_closed:
+                    conversation_history.clear()
+                    active_model = "nemotron-3-ultra"
+                elif new_model and not is_offline:
+                    active_model = new_model
+
+                conversation_history.append({"role": "assistant", "content": content})
                 speak(content.strip())
             else:
                 speak("Hubo un error al procesar tu solicitud.")

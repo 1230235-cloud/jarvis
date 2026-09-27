@@ -25,42 +25,64 @@ class JarvisUI(BoxLayout):
         super(JarvisUI, self).__init__(**kwargs)
         self.orientation = 'vertical'
         self.padding = 10
-        self.spacing = 10
+        self.spacing = 8
         self.pending_image_path = None
 
-        # Variables para mantener el historial y el modelo activo de la sesión
+        # Historial y modelo activo
         self.conversation_history = []
-        self.active_model = None
+        self.active_model = "nemotron-3-ultra"
+        self.is_offline = False
 
         # Configuración de Piper TTS y el modelo Claude (México - High)
         self.model_path = "voices/es_MX-claude-high.onnx"
         self.piper_bin = "./piper/piper"
 
-        # Campo superior para la URL del túnel de Cloudflare
-        url_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.08), spacing=5)
-        url_label = Label(text="Túnel URL:", size_hint=(0.2, 1))
+        # 1. Barra superior: Selector de Conexión (Tailscale / LAN / Cloudflare)
+        conn_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.07), spacing=5)
+        conn_label = Label(text="URL Backend:", size_hint=(0.18, 1))
         self.url_input = TextInput(
-            text="https://deutsch-quote-dubai-signed.trycloudflare.com/ask",
+            text="http://100.64.0.1:8000/ask",  # Default Tailscale IP
             multiline=False,
-            size_hint=(0.8, 1)
+            size_hint=(0.42, 1)
         )
-        url_layout.add_widget(url_label)
-        url_layout.add_widget(self.url_input)
-        self.add_widget(url_layout)
+        self.btn_tailscale = Button(text="Tailscale", size_hint=(0.13, 1))
+        self.btn_tailscale.bind(on_press=lambda x: setattr(self.url_input, 'text', "http://100.64.0.1:8000/ask"))
+        
+        self.btn_lan = Button(text="WiFi LAN", size_hint=(0.13, 1))
+        self.btn_lan.bind(on_press=lambda x: setattr(self.url_input, 'text', "http://10.21.209.217:8000/ask"))
+        
+        self.btn_tunnel = Button(text="Túnel", size_hint=(0.14, 1))
+        self.btn_tunnel.bind(on_press=lambda x: setattr(self.url_input, 'text', "https://deutsch-quote-dubai-signed.trycloudflare.com/ask"))
 
-        # Fila para seleccionar imagen mediante explorador de archivos
-        img_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.08), spacing=5)
-        self.img_status_label = Label(text="Ninguna imagen seleccionada", size_hint=(0.7, 1))
-        self.select_img_btn = Button(text="📂 Seleccionar Imagen", size_hint=(0.3, 1))
+        conn_layout.add_widget(conn_label)
+        conn_layout.add_widget(self.url_input)
+        conn_layout.add_widget(self.btn_tailscale)
+        conn_layout.add_widget(self.btn_lan)
+        conn_layout.add_widget(self.btn_tunnel)
+        self.add_widget(conn_layout)
+
+        # 2. Barra de Estado: Modo Offline y Selector de Imagen
+        status_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.07), spacing=5)
+        self.offline_btn = Button(
+            text="🌐 Modo: Online (Nemotron 3 Ultra)", 
+            background_color=(0.1, 0.6, 0.6, 1),
+            size_hint=(0.45, 1)
+        )
+        self.offline_btn.bind(on_press=self.toggle_offline)
+
+        self.img_status_label = Label(text="Sin imagen", size_hint=(0.35, 1))
+        self.select_img_btn = Button(text="📂 Imagen", size_hint=(0.20, 1))
         self.select_img_btn.bind(on_press=self.open_file_dialog)
-        img_layout.add_widget(self.img_status_label)
-        img_layout.add_widget(self.select_img_btn)
-        self.add_widget(img_layout)
 
-        # Área de historial de chat
-        self.scroll = ScrollView(size_hint=(1, 0.69))
+        status_layout.add_widget(self.offline_btn)
+        status_layout.add_widget(self.img_status_label)
+        status_layout.add_widget(self.select_img_btn)
+        self.add_widget(status_layout)
+
+        # 3. Área de historial de chat
+        self.scroll = ScrollView(size_hint=(1, 0.71))
         self.chat_label = Label(
-            text="[b]Nem:[/b] Hola, soy Nem. Sistema neuronal listo con voz Claude High...\n",
+            text="[b]Nem:[/b] Hola, soy Nem. Sistema neuronal listo con voz Claude High. Modo activo: [b]Nemotron 3 Ultra[/b].\n",
             markup=True,
             size_hint_y=None,
             text_size=(self.width, None),
@@ -71,7 +93,7 @@ class JarvisUI(BoxLayout):
         self.scroll.add_widget(self.chat_label)
         self.add_widget(self.scroll)
 
-        # Controles de entrada (Mensaje + Botón Micrófono + Botón Enviar)
+        # 4. Controles de entrada (Mensaje + Botón Micrófono + Botón Enviar)
         input_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.15), spacing=10)
         self.user_input = TextInput(
             hint_text="Escribe o habla con Nem...",
@@ -97,11 +119,21 @@ class JarvisUI(BoxLayout):
         input_layout.add_widget(self.send_btn)
         self.add_widget(input_layout)
 
+    def toggle_offline(self, instance):
+        self.is_offline = not self.is_offline
+        if self.is_offline:
+            self.offline_btn.text = "📴 Modo: Offline (Llama Local)"
+            self.offline_btn.background_color = (0.8, 0.4, 0.1, 1)
+            self.append_chat("Nem", "Modo offline activado. Inferencia local mediante llama.cpp.")
+            self.speak("Modo offline activado.", is_action=True)
+        else:
+            self.offline_btn.text = "🌐 Modo: Online (Nemotron 3 Ultra)"
+            self.offline_btn.background_color = (0.1, 0.6, 0.6, 1)
+            self.append_chat("Nem", "Modo online activado con Nemotron 3 Ultra.")
+            self.speak("Modo online activado.", is_action=True)
+
     def speak(self, text, is_action=False):
-        """
-        Nem lee todo lo que conteste la IA por voz, excepto si detecta código
-        o bloques largos (>350 caracteres), usando una confirmación rápida.
-        """
+        """Nem lee la respuesta por voz con Piper TTS."""
         def _run_speech():
             try:
                 spoken_text = text
@@ -109,12 +141,9 @@ class JarvisUI(BoxLayout):
                     spoken_text = "Listo, revisa el resultado en pantalla."
 
                 output_wav = "output.wav"
-                
-                # Ejecutar el binario local de Piper con el modelo descargado
                 cmd = f"echo '{spoken_text}' | {self.piper_bin} --model {self.model_path} --output_file {output_wav}"
                 os.system(cmd)
 
-                # Reproducir el audio resultante en Linux
                 if os.path.exists(output_wav):
                     os.system(f"aplay {output_wav} > /dev/null 2>&1 || ffplay -nodisp -autoexit {output_wav} > /dev/null 2>&1")
             except Exception as e:
@@ -167,10 +196,10 @@ class JarvisUI(BoxLayout):
             if file_path:
                 self.pending_image_path = file_path
                 filename = file_path.split("/")[-1]
-                self.img_status_label.text = f"Imagen: {filename}"
-                self.append_chat("Nem", f"Imagen cargada temporalmente: {filename}")
+                self.img_status_label.text = f"Img: {filename}"
+                self.append_chat("Nem", f"Imagen seleccionada: {filename}")
         except Exception as e:
-            self.append_chat("Nem", f"Error al abrir el explorador: {str(e)}")
+            self.append_chat("Nem", f"Error al abrir explorador: {str(e)}")
 
     def append_chat(self, sender, text):
         new_text = f"{self.chat_label.text}\n[b]{sender}:[/b] {text}"
@@ -181,23 +210,18 @@ class JarvisUI(BoxLayout):
         if not prompt and not self.pending_image_path:
             return
 
-        # Detección de comando de cierre "Gracias Nem"
         text_lower = prompt.lower()
         if "gracias nem" in text_lower or text_lower == "gracias":
             self.conversation_history.clear()
-            self.active_model = None
-            self.append_chat("Nem", "De nada, cierro el tema actual. Quedo atenta a tu siguiente consulta.")
-            self.speak("De nada, quedo atenta.", is_action=True)
+            self.active_model = "nemotron-3-ultra"
+            self.append_chat("Nem", "De nada, cierro el tema especializado. Vuelvo a Nemotron para tus consultas habituales.")
+            self.speak("De nada, vuelvo a Nemotron.", is_action=True)
             self.user_input.text = ""
             return
 
-        # Detección automática de investigaciones profundas
-        if self.active_model is None and (text_lower.startswith("investiga") or text_lower.startswith("busca profunda")):
-            self.active_model = "deep_research"
-
         image_path = self.pending_image_path
         self.pending_image_path = None
-        self.img_status_label.text = "Ninguna imagen seleccionada"
+        self.img_status_label.text = "Sin imagen"
 
         display_prompt = prompt if prompt else "[Imagen adjunta]"
         if image_path and prompt:
@@ -209,9 +233,9 @@ class JarvisUI(BoxLayout):
         self.user_input.text = ""
         self.send_btn.disabled = True
 
-        if text_lower.startswith("busca") or text_lower.startswith("investiga"):
-            query = text_lower.replace("busca en internet", "").replace("busca en google", "").replace("investiga", "").replace("busca", "").strip()
-            url = f"[https://www.google.com/search?q=](https://www.google.com/search?q=){query.replace(' ', '+')}"
+        if text_lower.startswith("busca en internet") or text_lower.startswith("busca en google"):
+            query = text_lower.replace("busca en internet", "").replace("busca en google", "").strip()
+            url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
             webbrowser.open(url)
             reply_msg = f"Abriendo Google para buscar: {query}"
             self.append_chat("Nem", reply_msg)
@@ -226,22 +250,20 @@ class JarvisUI(BoxLayout):
                 with open(image_path, "rb") as img_file:
                     image_b64 = base64.b64encode(img_file.read()).decode('utf-8')
             except Exception as e:
-                self.append_chat("Nem", f"Error al leer la imagen: {str(e)}")
+                self.append_chat("Nem", f"Error al leer imagen: {str(e)}")
                 self.send_btn.disabled = False
                 return
 
-        # Guardar prompt en la memoria
         self.conversation_history.append({"role": "user", "content": prompt})
-
         threading.Thread(target=self._query_backend, args=(prompt, target_url, image_b64)).start()
 
     def _query_backend(self, prompt, target_url, image_b64):
         try:
-            # Payload enriquecido pasando historial y model_override
             payload = {
                 "prompt": prompt,
                 "history": self.conversation_history,
-                "model_override": self.active_model
+                "active_model": self.active_model,
+                "offline": self.is_offline
             }
             if image_b64:
                 payload["image"] = image_b64
@@ -250,18 +272,20 @@ class JarvisUI(BoxLayout):
                 target_url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
-                timeout=300
+                timeout=120
             )
             if response.status_code == 200:
                 data = response.json()
                 raw_text = data.get("response", str(data))
+                new_model = data.get("active_model")
+                if new_model and not self.is_offline:
+                    self.active_model = new_model
                 reply = raw_text.replace('\\n', '\n')
-                # Guardar respuesta en el historial
                 self.conversation_history.append({"role": "assistant", "content": reply})
             else:
                 reply = f"Error del servidor: HTTP {response.status_code}"
         except Exception as e:
-            reply = f"Error de conexión: {str(e)}"
+            reply = f"Error de conexión: {str(e)}. (Activa el Modo Offline para usar la IA local)."
 
         Clock.schedule_once(lambda dt: self._update_response(reply))
 
@@ -297,7 +321,7 @@ class JarvisUI(BoxLayout):
 
 class JarvisApp(App):
     def build(self):
-        self.title = "Nem AI Client - Claude High Voice"
+        self.title = "Nem AI Client - Hybrid Online / Offline"
         return JarvisUI()
 
 if __name__ == "__main__":
