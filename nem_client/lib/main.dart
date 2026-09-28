@@ -64,12 +64,12 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  // URLs de conexión predefinidas (Tailscale es la alternativa recomendada a Cloudflare)
-  static const String defaultTailscaleUrl = 'http://100.64.0.1:8000/ask';
+  // URLs de conexión predefinidas (Opciones antibloqueo: Red Local directa, Hotspot y Ngrok fijo)
   static const String defaultLanUrl = 'http://10.21.209.217:8000/ask';
-  static const String defaultTunnelUrl = 'https://deutsch-quote-dubai-signed.trycloudflare.com/ask';
+  static const String defaultHotspotUrl = 'http://192.168.43.1:8000/ask';
+  static const String defaultNgrokUrl = 'https://tu-dominio.ngrok-free.app/ask';
 
-  final TextEditingController _urlController = TextEditingController(text: defaultTailscaleUrl);
+  final TextEditingController _urlController = TextEditingController(text: defaultLanUrl);
   final TextEditingController _messageController = TextEditingController();
   
   // Historial visual de mensajes en pantalla
@@ -393,29 +393,19 @@ class _ChatScreenState extends State<ChatScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Seleccionar Método de Conexión',
+                'Seleccionar Método de Conexión (Antibloqueo)',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Elige cómo conectarte al servidor de la tablet/PC sin depender exclusivamente de Cloudflare.',
+                'Opciones directas e inmunes a bloqueos de VPN/redes institucionales:',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.vpn_lock, color: Colors.tealAccent),
-                title: const Text('Tailscale VPN (Recomendado)'),
-                subtitle: const Text('IP fija privada, sin puertos abiertos ni caducidad'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                onTap: () {
-                  setState(() => _urlController.text = defaultTailscaleUrl);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.wifi, color: Colors.blueAccent),
-                title: const Text('Red Local WiFi (LAN)'),
-                subtitle: const Text('Conexión directa por IP local (10.21.209.217:8000)'),
+                title: const Text('Red Local WiFi (LAN Directa)'),
+                subtitle: const Text('Mismo WiFi: conexión directa por IP (10.21.209.217:8000)'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                 onTap: () {
                   setState(() => _urlController.text = defaultLanUrl);
@@ -423,12 +413,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.cloud_queue, color: Colors.purpleAccent),
-                title: const Text('Cloudflare Tunnel'),
-                subtitle: const Text('Túnel público HTTPS (trycloudflare.com)'),
+                leading: const Icon(Icons.wifi_tethering, color: Colors.greenAccent),
+                title: const Text('Punto de Acceso / Hotspot Tablet'),
+                subtitle: const Text('Conectado a la zona WiFi de la tablet (192.168.43.1:8000)'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                 onTap: () {
-                  setState(() => _urlController.text = defaultTunnelUrl);
+                  setState(() => _urlController.text = defaultHotspotUrl);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.public, color: Colors.tealAccent),
+                title: const Text('Ngrok (Túnel HTTPS Antibloqueo)'),
+                subtitle: const Text('Usa puerto 443 y dominio fijo (imposible de bloquear)'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                onTap: () {
+                  setState(() => _urlController.text = defaultNgrokUrl);
                   Navigator.pop(context);
                 },
               ),

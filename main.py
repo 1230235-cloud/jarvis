@@ -41,24 +41,24 @@ class JarvisUI(BoxLayout):
         conn_layout = BoxLayout(orientation='horizontal', size_hint=(1, 0.07), spacing=5)
         conn_label = Label(text="URL Backend:", size_hint=(0.18, 1))
         self.url_input = TextInput(
-            text="http://100.64.0.1:8000/ask",  # Default Tailscale IP
+            text="http://10.21.209.217:8000/ask",  # Default LAN IP
             multiline=False,
             size_hint=(0.42, 1)
         )
-        self.btn_tailscale = Button(text="Tailscale", size_hint=(0.13, 1))
-        self.btn_tailscale.bind(on_press=lambda x: setattr(self.url_input, 'text', "http://100.64.0.1:8000/ask"))
-        
         self.btn_lan = Button(text="WiFi LAN", size_hint=(0.13, 1))
         self.btn_lan.bind(on_press=lambda x: setattr(self.url_input, 'text', "http://10.21.209.217:8000/ask"))
         
-        self.btn_tunnel = Button(text="Túnel", size_hint=(0.14, 1))
-        self.btn_tunnel.bind(on_press=lambda x: setattr(self.url_input, 'text', "https://deutsch-quote-dubai-signed.trycloudflare.com/ask"))
+        self.btn_hotspot = Button(text="Hotspot", size_hint=(0.13, 1))
+        self.btn_hotspot.bind(on_press=lambda x: setattr(self.url_input, 'text', "http://192.168.43.1:8000/ask"))
+        
+        self.btn_ngrok = Button(text="Ngrok", size_hint=(0.14, 1))
+        self.btn_ngrok.bind(on_press=lambda x: setattr(self.url_input, 'text', "https://tu-dominio.ngrok-free.app/ask"))
 
         conn_layout.add_widget(conn_label)
         conn_layout.add_widget(self.url_input)
-        conn_layout.add_widget(self.btn_tailscale)
         conn_layout.add_widget(self.btn_lan)
-        conn_layout.add_widget(self.btn_tunnel)
+        conn_layout.add_widget(self.btn_hotspot)
+        conn_layout.add_widget(self.btn_ngrok)
         self.add_widget(conn_layout)
 
         # 2. Barra de Estado: Modo Offline y Selector de Imagen
