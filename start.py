@@ -2,9 +2,10 @@ import subprocess
 import time
 import os
 
-# 1. Matar procesos anteriores
-os.system("pkill -f llama-server")
-os.system("pkill -f 'python router.py'")
+# 1. Matar procesos anteriores exhaustivamente
+os.system("pkill -f llama-server 2>/dev/null")
+os.system("pkill -f router.py 2>/dev/null")
+os.system("fuser -k 8000/tcp 2>/dev/null")
 time.sleep(1)
 
 # 2. Iniciar llama-server en segundo plano

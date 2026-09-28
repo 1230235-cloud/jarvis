@@ -272,8 +272,17 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
     load_plugins()
+    server_class.allow_reuse_address = True
     server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
+    try:
+        httpd = server_class(server_address, handler_class)
+    except OSError as e:
+        if getattr(e, 'errno', None) == 98 or "Address already in use" in str(e):
+            print(f"\n\033[1;31m[ERROR]: El puerto {port} ya está ocupado por otra instancia.\033[0m")
+            print("Para liberarlo en Termux, ejecuta:")
+            print(f"  \033[1;33mpkill -f router.py\033[0m\n")
+        raise e
+
     print("=" * 60)
     print(f"  JARVIS Router Híbrido escuchando en el puerto {port}")
     print(f"  • IA Principal Online: {PRIMARY_ONLINE_MODEL}")
