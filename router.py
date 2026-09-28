@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+import subprocess
 import importlib
 import json
 import requests
@@ -270,6 +272,24 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+def free_port(port=8000):
+    """Mata automáticamente instancias previas de router.py para liberar el puerto."""
+    my_pid = str(os.getpid())
+    try:
+        res = subprocess.run(["pgrep", "-f", "router.py"], capture_output=True, text=True)
+        for pid_str in res.stdout.split():
+            pid_str = pid_str.strip()
+            if pid_str and pid_str != my_pid:
+                try:
+                    os.kill(int(pid_str), 9)
+                    print(f"[Auto-Clean] Instancia previa terminada (PID {pid_str}).")
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    os.system(f"fuser -k {port}/tcp 2>/dev/null")
+    time.sleep(0.8)
+
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
     load_plugins()
     server_class.allow_reuse_address = True
@@ -278,10 +298,18 @@ def run(server_class=HTTPServer, handler_class=RequestHandler, port=8000):
         httpd = server_class(server_address, handler_class)
     except OSError as e:
         if getattr(e, 'errno', None) == 98 or "Address already in use" in str(e):
-            print(f"\n\033[1;31m[ERROR]: El puerto {port} ya está ocupado por otra instancia.\033[0m")
-            print("Para liberarlo en Termux, ejecuta:")
-            print(f"  \033[1;33mpkill -f router.py\033[0m\n")
-        raise e
+            print(f"[Aviso] Puerto {port} ocupado por otra instancia. Liberando automáticamente...")
+            free_port(port)
+            try:
+                httpd = server_class(server_address, handler_class)
+                print(f"[Auto-Clean] ¡Puerto {port} liberado y listo!")
+            except Exception as retry_err:
+                print(f"\n\033[1;31m[ERROR]: No se pudo liberar el puerto {port} automáticamente.\033[0m")
+                print("Para liberarlo manualmente en Termux, ejecuta:")
+                print(f"  \033[1;33mpkill -f router.py\033[0m\n")
+                raise retry_err
+        else:
+            raise e
 
     print("=" * 60)
     print(f"  JARVIS Router Híbrido escuchando en el puerto {port}")
